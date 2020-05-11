@@ -83,6 +83,7 @@ class RunnersManager:
 
     def spawn_runner(self):
         speed_mod = self.speed_mod
+        faded = False
         if random.random() > max(0.80 - self.speed_mod / 1000., 0.5):
             r = random.random()
             if r < 0.1:
@@ -97,8 +98,9 @@ class RunnersManager:
                 runner_cls = VirusRunner
                 if self.slowdown_power:
                     speed_mod *= 0.65 ** self.slowdown_power
+                    faded = True
             self.space_node.add_child(
-                runner_cls(speed_mod=self.speed_mod, z_index=20)
+                runner_cls(speed_mod=self.speed_mod, faded=faded, z_index=20)
             )
 
     def update_speed_mod(self):
@@ -114,11 +116,12 @@ class RunnersManager:
         for child_node in self.space_node.children:
             if isinstance(child_node, VirusRunner):
                 child_node.slowdown(0.65)
+                child_node.fade()
 
         self.space_node.transitions_manager.set(
             'slowndown_cancel', NodeTransitionsSequence(
                 [
-                    NodeTransitionDelay(3000),
+                    NodeTransitionDelay(5000),
                     NodeTransitionCallback(lambda _: self._on_cancel_slowdown()),
                 ],
             )
@@ -156,6 +159,8 @@ class PlayerManager:
         )
         self.is_moving = False
         self.is_frozen = False
+        self.move_left_request = False
+        self.move_right_request = False
         self.current_lane = 2
 
     def kill(self):
@@ -167,9 +172,10 @@ class PlayerManager:
 
     def handle_enemy_kill(self, enemy_node):
         self.player_state.score += 10
+        self.player_state.people_counter.increase(1)
 
     def handle_enemy_missed(self, enemy_node):
-        self.player_state.people_counter.decrease(1)
+        self.player_state.people_counter.decrease(50)
         self.effects_manager.flash()
 
     def handle_pickup_grab(self, pickup_node):
@@ -192,16 +198,29 @@ class PlayerManager:
             self.player_state.antivirus_powerup_counter.increase(1)
 
     def consume_fuel(self, dt: int):
-        self.player_state.soap_meter_counter.decrease(dt)
+        self.player_state.soap_meter_counter.decrease(dt * 2)
 
-    def move_lane(self, movement_dir: int):
+    def move_left(self, flag: bool):
+        self.move_left_request = flag
+        self._process_movement()
+
+    def move_right(self, flag: bool):
+        self.move_right_request = flag
+        self._process_movement()
+
+    @property
+    def movement_direction(self) -> int:
+        return int(self.move_left_request) * -1 + int(self.move_right_request)
+
+    def _process_movement(self):
         if (
-                not self.is_moving
-                and 0 <= self.current_lane + movement_dir < len(LANE_HERO_SLOTS)
-                and not self.is_frozen
+            self.movement_direction
+            and not self.is_moving
+            and 0 <= self.current_lane + self.movement_direction < len(LANE_HERO_SLOTS)
+            and not self.is_frozen
         ):
             self.is_moving = True
-            self.current_lane += movement_dir
+            self.current_lane += self.movement_direction
             self.soap.transitions_manager.set(
                 'movement',
                 NodeTransitionsSequence([
@@ -213,9 +232,11 @@ class PlayerManager:
 
     def _on_end_movement(self, _):
         self.is_moving = False
+        self._process_movement()
 
     def _on_end_frozen(self, _):
         self.is_frozen = False
+        self._process_movement()
 
 
 class UIManager:
@@ -339,5 +360,5 @@ class UIManager:
             int(self.player_state.antivirus_powerup_counter)
         )
         self.people_status.update_count(
-            int(int(self.player_state.people_counter) ** 2.5)
+            int(self.player_state.people_counter) // 10
         )

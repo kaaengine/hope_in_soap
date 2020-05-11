@@ -2,12 +2,13 @@ import typing
 import random
 
 from kaa.nodes import Node
+from kaa.colors import Color
 from kaa.sprites import Sprite
 from kaa.physics import BodyNode, HitboxNode, BodyNodeType
 from kaa.geometry import Vector, Polygon, Circle
 from kaa.transitions import (
-    NodeTransition, NodeTransitionsSequence, NodeTransitionCallback,
-    NodeSpriteTransition,
+    NodeTransition, NodeTransitionsSequence, NodeTransitionsParallel,
+    NodeTransitionCallback, NodeSpriteTransition,
 )
 
 from .constants import (
@@ -82,7 +83,7 @@ class LaneRunnerBase(BodyNode):
     FRAME_DURATION = 60
     TRIGGER_ID = None
 
-    def __init__(self, *, speed_mod, **kwargs):
+    def __init__(self, *, speed_mod, faded=False, **kwargs):
         assert self.SPRITE_FRAMES
         assert self.TRIGGER_ID
 
@@ -114,6 +115,9 @@ class LaneRunnerBase(BodyNode):
             ),
         )
 
+        if faded:
+            self.color = Color(0.5, 0.5, 0.5, 1.)
+
     def handle_destruction(self):
         if self._is_destroying:
             return
@@ -127,6 +131,12 @@ class LaneRunnerBase(BodyNode):
                 NodeTransition(Node.scale, Vector(0.01, 0.01), duration=400.),
                 NodeTransitionCallback(lambda n: n.delete()),
             ]),
+        )
+
+    def fade(self):
+        self.transitions_manager.set(
+            'fade',
+            NodeTransition(Node.color, Color(0.5, 0.5, 0.5, 1.), duration=1500),
         )
 
     def slowdown(self, fraction: float):
@@ -178,7 +188,9 @@ class CounterStatusUINode(Node):
                         else powerup_sprite
                     ),
                     z_index=50 + i,
-                    visible=False,
+                    # start hidden
+                    scale=Vector(0., 0.),
+                    color=Color(1., 1., 1., 0.),
                 )
             ) for i in range(max_count)
         ]
@@ -196,8 +208,14 @@ class CounterStatusUINode(Node):
     def update_count(self, new_count: int):
         if new_count < self.current_count:
             for powerup in self.single_powerups[new_count:self.current_count]:
-                powerup.visible = False
+                powerup.transition = NodeTransitionsParallel([
+                    NodeTransition(Node.scale, Vector(0., 0.), duration=400),
+                    NodeTransition(Node.color, Color(1., 1., 1., 0.), duration=400),
+                ])
         elif new_count > self.current_count:
             for powerup in self.single_powerups[self.current_count:new_count]:
-                powerup.visible = True
+                powerup.transition = NodeTransitionsParallel([
+                    NodeTransition(Node.scale, Vector(1., 1.), duration=400),
+                    NodeTransition(Node.color, Color(1., 1., 1., 1.), duration=400),
+                ])
         self.current_count = new_count

@@ -48,4 +48,4 @@ class PlayerState:
         self.liquid_soap_powerup_counter: MinMaxCounter = MinMaxCounter(0, 0, 3)
         self.antivirus_powerup_counter: MinMaxCounter = MinMaxCounter(0, 0, 3)
         self.score: int = 0
-        self.people_counter: MinMaxCounter = MinMaxCounter(10, 0, 10)
+        self.people_counter: MinMaxCounter = MinMaxCounter(300, 0, 10000)

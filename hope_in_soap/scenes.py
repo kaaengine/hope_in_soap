@@ -102,14 +102,6 @@ class GameplayScene(Scene):
             root_node=self.root,
         )
 
-        # self.soap_hud = self.root.add_child(
-        #     SoapHUDNode(
-        #         source=self.soap,
-        #         position=Vector(320, 240),
-        #     )
-        # )
-        #
-
     def on_collision_soap_enemy(self, arbiter, soap_pair, enemy_pair):
         if not self.game_over:
             self.player_manager.handle_enemy_kill(enemy_pair.body)
@@ -131,17 +123,23 @@ class GameplayScene(Scene):
 
     def update(self, dt):
         for event in self.input.events():
-            if event.keyboard_key and event.keyboard_key.is_key_down:
+            if event.keyboard_key:
                 pressed_key = event.keyboard_key.key
                 if not self.game_over:
-                    if pressed_key == Keycode.a or pressed_key == Keycode.left:
-                        self.player_manager.move_lane(-1)
-                    elif pressed_key == Keycode.d or pressed_key == Keycode.right:
-                        self.player_manager.move_lane(1)
-                    elif pressed_key == Keycode.num_1:
-                        self.powerups_manager.use_liquid_soap()
-                    elif pressed_key == Keycode.num_2:
-                        self.powerups_manager.use_antivirus()
+                    if event.keyboard_key.is_key_down:
+                        if pressed_key == Keycode.a or pressed_key == Keycode.left:
+                            self.player_manager.move_left(True)
+                        elif pressed_key == Keycode.d or pressed_key == Keycode.right:
+                            self.player_manager.move_right(True)
+                        elif pressed_key == Keycode.num_1:
+                            self.powerups_manager.use_liquid_soap()
+                        elif pressed_key == Keycode.num_2:
+                            self.powerups_manager.use_antivirus()
+                    else:
+                        if pressed_key == Keycode.a or pressed_key == Keycode.left:
+                            self.player_manager.move_left(False)
+                        elif pressed_key == Keycode.d or pressed_key == Keycode.right:
+                            self.player_manager.move_right(False)
 
         if not self.game_over:
             self.effects_manager.update_camera()
